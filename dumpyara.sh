@@ -11,6 +11,15 @@ PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 # Create input & working directory if it does not exist
 mkdir -p "$PROJECT_DIR"/input "$PROJECT_DIR"/working
 
+if [[ -s "${PROJECT_DIR}"/.user_id ]] && [[ -s "${PROJECT_DIR}"/.user_first_name ]] ; then USER_ID=$(< "${PROJECT_DIR}"/.user_id) && USER_FIRST_NAME=$(< "${PROJECT_DIR}"/.user_first_name) ; fi
+if [[ -s "${PROJECT_DIR}"/.user_tag ]] ; then USER_TAG=$(< "${PROJECT_DIR}"/.user_tag) ; else USER_TAG=none ; fi 
+if [[ -s "${PROJECT_DIR}"/.tgtoken ]] && [[ -s "${PROJECT_DIR}"/.tg_chat_id ]] ; then tgtoken=$(< "${PROJECT_DIR}"/.tgtoken) && TELEGRAM_CHAT_ID=$(< "${PROJECT_DIR}"/.tg_chat_id) && TELEGRAM_LIVE=true ; fi #Send Dump Start Notification and fetch message id, to be used for later live editing
+if [ "$TELEGRAM_LIVE" == true ] && [[ -s "${PROJECT_DIR}"/.message_id ]] ; then MESSAGE_ID=$(< "${PROJECT_DIR}"/.message_id) ; else TELEGRAM_LIVE=false ; fi
+if [[ "$MESSAGE_ID" == "" ]]; then echo "Setting \$LIVE_TELEGRAM to false" && LIVE_TELEGRAM=false ; fi
+live_telegram_update() {
+	if [ "$TELEGRAM_LIVE" == true ] ; then curl -X POST -H 'Content-Type: application/json' -d "{\"message_id\":$MESSAGE_ID, \"chat_id\": \"$TELEGRAM_CHAT_ID\", \"text\": \"$MESSAGE...\", \"disable_notification\": true}" https://api.telegram.org/bot$tgtoken/editMessageText ; fi
+}
+
 # GitHub token
 if [[ -n $2 ]]; then
     GIT_OAUTH_TOKEN=$2
@@ -44,9 +53,13 @@ PARTITIONS="system systemex system_ext system_other vendor cust odm odm_ext oem 
 
 if [[ -d "$1" ]]; then
     echo 'Directory detected. Copying...'
+    MESSAGE="Directory detected. Copying..."
+	live_telegram_update
     cp -a "$1" "$PROJECT_DIR"/working/"${UNZIP_DIR}"
 elif [[ -f "$1" ]]; then
     echo 'File detected. Copying...'
+    MESSAGE="File detected. Copying..."
+	live_telegram_update
     cp -a "$1" "$PROJECT_DIR"/input/"${FILE}" > /dev/null 2>&1
 fi
 
@@ -75,6 +88,8 @@ if [[ -f "$PROJECT_DIR"/working/"${UNZIP_DIR}"/boot.img ]]; then
     extract-dtb "$PROJECT_DIR"/working/"${UNZIP_DIR}"/boot.img -o "$PROJECT_DIR"/working/"${UNZIP_DIR}"/bootimg > /dev/null # Extract boot
     bash "$PROJECT_DIR"/mkbootimg_tools/mkboot "$PROJECT_DIR"/working/"${UNZIP_DIR}"/boot.img "$PROJECT_DIR"/working/"${UNZIP_DIR}"/boot > /dev/null 2>&1
     echo 'boot extracted'
+    MESSAGE="boot extracted"
+	live_telegram_update
     # extract-ikconfig
     [[ ! -e "${PROJECT_DIR}"/extract-ikconfig ]] && curl https://raw.githubusercontent.com/torvalds/linux/master/scripts/extract-ikconfig > ${PROJECT_DIR}/extract-ikconfig
     bash "${PROJECT_DIR}"/extract-ikconfig "$PROJECT_DIR"/working/"${UNZIP_DIR}"/boot.img > "$PROJECT_DIR"/working/"${UNZIP_DIR}"/ikconfig
@@ -82,13 +97,19 @@ if [[ -f "$PROJECT_DIR"/working/"${UNZIP_DIR}"/boot.img ]]; then
     mkdir -p "$PROJECT_DIR"/working/"${UNZIP_DIR}"/bootRE
     python3 "${PROJECT_DIR}"/vmlinux-to-elf/vmlinux_to_elf/kallsyms_finder.py "$PROJECT_DIR"/working/"${UNZIP_DIR}"/boot.img > "$PROJECT_DIR"/working/"${UNZIP_DIR}"/bootRE/boot_kallsyms.txt 2>&1
     echo 'boot_kallsyms.txt generated'
+    MESSAGE="boot_kallsyms.txt generated"
+    live_telegram_update
     python3 "${PROJECT_DIR}"/vmlinux-to-elf/vmlinux_to_elf/main.py "$PROJECT_DIR"/working/"${UNZIP_DIR}"/boot.img "$PROJECT_DIR"/working/"${UNZIP_DIR}"/bootRE/boot.elf > /dev/null 2>&1
     echo 'boot.elf generated'
+    MESSAGE="boot.elf generated"
+    live_telegram_update
 fi
 
 if [[ -f "$PROJECT_DIR"/working/"${UNZIP_DIR}"/dtbo.img ]]; then
     extract-dtb "$PROJECT_DIR"/working/"${UNZIP_DIR}"/dtbo.img -o "$PROJECT_DIR"/working/"${UNZIP_DIR}"/dtbo > /dev/null # Extract dtbo
     echo 'dtbo extracted'
+    MESSAGE="dtbo extracted"
+    live_telegram_update
 fi
 
 # Extract dts
@@ -104,6 +125,8 @@ for p in $PARTITIONS; do
     if [[ -e "$p.img" ]]; then
         mkdir "$p" 2> /dev/null || rm -rf "${p:?}"/*
         echo "Extracting $p partition"
+        MESSAGE="Extracting $p partition"
+	live_telegram_update
         7z x "$p".img -y -o"$p"/ > /dev/null 2>&1
         if [ $? -eq 0 ]; then
             rm "$p".img > /dev/null 2>&1
@@ -111,12 +134,16 @@ for p in $PARTITIONS; do
         #handling erofs images, which can't be handled by 7z
             if [ -f $p.img ] && [ $p != "modem" ]; then
                 echo "Couldn't extract $p partition by 7z. Using fsck.erofs."
+                MESSAGE="Couldn't extract $p partition by 7z. Using fsck.erofs."
+	        live_telegram_update
                 rm -rf "${p}"/*
                 "$PROJECT_DIR"/Firmware_extractor/tools/Linux/bin/fsck.erofs --extract="$p" "$p".img
                 if [ $? -eq 0 ]; then
                     rm -fv "$p".img > /dev/null 2>&1
                 else
                     echo "Couldn't extract $p partition by fsck.erofs. Using mount loop"
+                    MESSAGE="Couldn't extract $p partition by fsck.erofs. Using mount loop"
+	            live_telegram_update
                     sudo mount -o loop -t auto "$p".img "$p"
                     mkdir "${p}_"
                     sudo cp -rf "${p}/"* "${p}_"
@@ -127,8 +154,14 @@ for p in $PARTITIONS; do
                         rm -fv "$p".img > /dev/null 2>&1
                     else
                         echo "Couldn't extract $p partition. It might use an unsupported filesystem."
+                        MESSAGE="Couldn't extract $p partition. It might use an unsupported filesystem."
+	                live_telegram_update
                         echo "For EROFS: make sure you're using Linux 5.4+ kernel."
+                        MESSAGE="For EROFS: make sure you're using Linux 5.4+ kernel."
+	                live_telegram_update
                         echo "For F2FS: make sure you're using Linux 5.15+ kernel."
+                        MESSAGE="For F2FS: make sure you're using Linux 5.15+ kernel."
+	                live_telegram_update
                     fi
                 fi
             fi
@@ -264,7 +297,11 @@ fi
 # Telegram channel
 TG_TOKEN=$(< "$PROJECT_DIR"/.tgtoken)
 if [[ -n "$TG_TOKEN" ]]; then
-    CHAT_ID="@HimemoriCH"
+    if [[ -s "${PROJECT_DIR}"/.tgchat ]]; then		# TG Channel ID
+	CHAT_ID=$(< "${PROJECT_DIR}"/.tgchat)
+    else
+	CHAT_ID="@HimemoriCH"
+    fi
     commit_head=$(git log --format=format:%H | head -n 1)
     commit_link="https://github.com/$ORG/$repo/commit/$commit_head"
     echo -e "Sending telegram notification"
@@ -276,6 +313,8 @@ if [[ -n "$TG_TOKEN" ]]; then
         printf "\n<b>GitHub:</b>"
         printf "\n<a href=\"%s\">Commit</a>" "$commit_link"
         printf "\n<a href=\"https://github.com/%s/%s/tree/%s/\">%s</a>" "$ORG" "$repo" "$branch" "$codename"
+        printf "\nDump Started By : <a href=\"tg://user?id=${USER_ID}\">${USER_FIRST_NAME}</a>"
+	printf "\nJoin $CHAT_ID For More Dumps"
     } >> "$PROJECT_DIR"/working/tg.html
     TEXT=$(< "$PROJECT_DIR"/working/tg.html)
     curl -s "https://api.telegram.org/bot${TG_TOKEN}/sendmessage" --data "text=${TEXT}&chat_id=${CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" > /dev/null
