@@ -258,12 +258,8 @@ find "$PROJECT_DIR"/working/"${UNZIP_DIR}" -type f -printf '%P\n' | sort | grep 
 if [[ -n $GIT_OAUTH_TOKEN ]]; then
     curl --silent --fail "https://raw.githubusercontent.com/$ORG/$repo/$branch/all_files.txt" 2> /dev/null && echo "Firmware already dumped!" && exit 1
     git init
-    if [[ -z "$(git config --get user.email)" ]]; then
-        git config user.email AndroidDumps@github.com
-    fi
-    if [[ -z "$(git config --get user.name)" ]]; then
-        git config user.name AndroidDumps
-    fi
+    git config --global user.name "Renayura"
+    git config --global user.email "renayura@proton.me"
     git checkout -b "$branch"
     find . -size +97M -printf '%P\n' -o -name "*sensetime*" -printf '%P\n' -o -name "*.lic" -printf '%P\n' >| .gitignore
     git add --all
