@@ -290,6 +290,9 @@ else
     exit 1
 fi
 
+#Grep Kernel Version #Please Forgive Me For This Poor Script I've Written Which Might Not even work with some other Architecture because of how specific the command is.
+KERNEL_VERSION=$(sed -n '3p' $PROJECT_DIR/out/bootRE/ikconfig | cut -c 15- | rev | cut -c 22- | rev)
+
 # Telegram channel
 TG_TOKEN=$(< "$PROJECT_DIR"/.tgtoken)
 if [[ -n "$TG_TOKEN" ]]; then
@@ -306,6 +309,7 @@ if [[ -n "$TG_TOKEN" ]]; then
         printf "\n<b>Device: %s</b>" "$codename"
         printf "\n<b>Version:</b> %s" "$release"
         printf "\n<b>Fingerprint:</b> %s" "$fingerprint"
+        printf "\n<b>Kernel Version:</b> %s" "${KERNEL_VERSION}"
         printf "\n<b>GitHub:</b>"
         printf "\n<a href=\"%s\">Commit</a>" "$commit_link"
         printf "\n<a href=\"https://github.com/%s/%s/tree/%s/\">%s</a>" "$ORG" "$repo" "$branch" "$codename"
