@@ -302,7 +302,7 @@ if [[ -n "$TG_TOKEN" ]]; then
     if [[ -s "${PROJECT_DIR}"/.tgchat ]]; then		# TG Channel ID
 	CHAT_ID=$(< "${PROJECT_DIR}"/.tgchat)
     else
-	CHAT_ID="@gudang_dummper"
+	CHAT_ID="@realme8indonesia"
     fi
     commit_head=$(git log --format=format:%H | head -n 1)
     commit_link="https://github.com/$ORG/$repo/commit/$commit_head"
