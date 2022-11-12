@@ -45,7 +45,7 @@ else
     [[ -e "$URL" ]] || { echo "Invalid Input" && exit 1; }
 fi
 
-ORG=AthenaPrjk #your GitHub org name
+ORG=RealmemeGanjet #your GitHub org name
 FILE=$(echo ${URL##*/} | inline-detox)
 EXTENSION=$(echo ${URL##*.} | inline-detox)
 UNZIP_DIR=${FILE/.$EXTENSION/}
@@ -261,8 +261,8 @@ find "$PROJECT_DIR"/working/"${UNZIP_DIR}" -type f -printf '%P\n' | sort | grep 
 if [[ -n $GIT_OAUTH_TOKEN ]]; then
     curl --silent --fail "https://raw.githubusercontent.com/$ORG/$repo/$branch/all_files.txt" 2> /dev/null && echo "Firmware already dumped!" && exit 1
     git init
-    git config --global user.name "Renayura"
-    git config --global user.email "renayura@proton.me"
+    git config --global user.name "WisnuArdhi28"
+    git config --global user.email "wisnuardi128@gmail.com"
     git checkout -b "$branch"
     find . -size +97M -printf '%P\n' -o -name "*sensetime*" -printf '%P\n' -o -name "*.lic" -printf '%P\n' >| .gitignore
     git add --all
@@ -302,7 +302,7 @@ if [[ -n "$TG_TOKEN" ]]; then
     if [[ -s "${PROJECT_DIR}"/.tgchat ]]; then		# TG Channel ID
 	CHAT_ID=$(< "${PROJECT_DIR}"/.tgchat)
     else
-	CHAT_ID="@HimemoriCH"
+	CHAT_ID="@gudang_dummper"
     fi
     commit_head=$(git log --format=format:%H | head -n 1)
     commit_link="https://github.com/$ORG/$repo/commit/$commit_head"
